@@ -1,0 +1,13 @@
+scenario,expected_type,RF_attack_prob,RF_threshold,RF_pred,SVM_attack_prob,SVM_threshold,SVM_pred,RF_correct,SVM_correct
+normal_http,normal,0.0,0.007,normal,0.0185,0.007,attack,True,False
+normal_dns,normal,0.0,0.007,normal,0.0,0.007,normal,True,True
+dos_syn_flood_like,attack,0.58,0.007,attack,0.5324,0.007,attack,True,True
+probe_port_scan_like,attack,0.99,0.007,attack,0.9918,0.007,attack,True,True
+r2l_failed_login_like,attack,0.22,0.007,attack,0.1542,0.007,attack,True,True
+u2r_privilege_escalation_like,attack,0.6,0.007,attack,0.1542,0.007,attack,True,True
+dos_udp_flood_like,attack,0.3,0.007,attack,0.0,0.007,normal,True,False
+dos_slow_rate_like,attack,0.11,0.007,attack,0.0,0.007,normal,True,False
+probe_host_sweep_like,attack,0.09,0.007,attack,0.5776,0.007,attack,True,True
+probe_service_scan_like,attack,0.12,0.007,attack,0.0106,0.007,attack,True,True
+r2l_ftp_bruteforce_like,attack,0.23,0.007,attack,0.1542,0.007,attack,True,True
+u2r_file_abuse_like,attack,0.11,0.007,attack,0.1542,0.007,attack,True,True

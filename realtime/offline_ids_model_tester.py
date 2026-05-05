@@ -1,15 +1,5 @@
 #!/usr/bin/env python3
-"""
-offline_ids_model_tester.py
 
-Safely tests saved IDS machine-learning models using synthetic NSL-KDD-style
-feature rows. This script does NOT send packets, scan networks, or execute
-real attacks. It only creates offline feature vectors that resemble common
-traffic/attack categories and passes them into saved .pkl models.
-
-Example:
-    python offline_ids_model_tester.py --rf ids_random_forest_model.pkl --svm ids_svm_model.pkl
-"""
 
 import argparse
 from pathlib import Path
@@ -195,6 +185,83 @@ def make_synthetic_samples():
         "expected_type": "attack",
     })
     samples.append(u2r_priv)
+       
+    dos_udp = base_normal_sample()
+    dos_udp.update({
+        "protocol_type": "udp",
+        "service": "domain_u",
+        "src_bytes": 0,
+        "dst_bytes": 0,
+        "count": 300,
+        "srv_count": 300,
+        "serror_rate": 1.0,
+        "scenario": "dos_udp_flood_like",
+        "expected_type": "attack",
+    })
+    samples.append(dos_udp)
+
+   
+    dos_slow = base_normal_sample()
+    dos_slow.update({
+        "duration": 100,
+        "src_bytes": 10,
+        "dst_bytes": 10,
+        "count": 50,
+        "srv_count": 50,
+        "same_srv_rate": 1.0,
+        "scenario": "dos_slow_rate_like",
+        "expected_type": "attack",
+    })
+    samples.append(dos_slow)
+
+    
+    probe_host = base_normal_sample()
+    probe_host.update({
+        "count": 200,
+        "srv_count": 5,
+        "diff_srv_rate": 0.95,
+        "dst_host_count": 255,
+        "scenario": "probe_host_sweep_like",
+        "expected_type": "attack",
+    })
+    samples.append(probe_host)
+
+    
+    probe_service = base_normal_sample()
+    probe_service.update({
+        "service": "ftp",
+        "count": 150,
+        "srv_count": 20,
+        "same_srv_rate": 0.2,
+        "diff_srv_rate": 0.8,
+        "scenario": "probe_service_scan_like",
+        "expected_type": "attack",
+    })
+    samples.append(probe_service)
+
+    
+    r2l_brute = base_normal_sample()
+    r2l_brute.update({
+        "service": "ftp",
+        "num_failed_logins": 10,
+        "hot": 5,
+        "logged_in": 0,
+        "scenario": "r2l_ftp_bruteforce_like",
+        "expected_type": "attack",
+    })
+    samples.append(r2l_brute)
+
+    #
+    u2r_file = base_normal_sample()
+    u2r_file.update({
+        "num_file_creations": 10,
+        "num_shells": 2,
+        "num_access_files": 5,
+        "logged_in": 1,
+        "scenario": "u2r_file_abuse_like",
+        "expected_type": "attack",
+    })
+    samples.append(u2r_file)
 
     df = pd.DataFrame(samples)
 
@@ -289,6 +356,61 @@ def evaluate_model(name, model_path, raw_df, encoder=None, feature_columns=None)
     print(results.to_string(index=False))
     return results
 
+def compare_models(
+    rf_path,
+    svm_path,
+    df,
+    encoder=None,
+    feature_columns=None,
+    rf_threshold=0.007,
+    svm_threshold=0.007
+):
+    print("\n" + "=" * 80)
+    print("COMPARING RANDOM FOREST vs SVM")
+    print("=" * 80)
+    print(f"RF attack threshold:  {rf_threshold}")
+    print(f"SVM attack threshold: {svm_threshold}")
+
+    rf_model = joblib.load(rf_path)
+    svm_model = joblib.load(svm_path)
+
+    metadata = df[["scenario", "expected_type"]].copy()
+    raw_features = df.drop(columns=["scenario", "expected_type"])
+
+    X_rf = prepare_features_for_model(rf_model, raw_features, feature_columns)
+    X_svm = prepare_features_for_model(svm_model, raw_features, feature_columns)
+
+    rf_probs = np.asarray(get_attack_probability(rf_model, X_rf, encoder), dtype=float)
+    svm_probs = np.asarray(get_attack_probability(svm_model, X_svm, encoder), dtype=float)
+
+    if encoder is not None:
+        attack_label = encoder.transform(["attack"])[0]
+        normal_label = encoder.transform(["normal"])[0]
+    else:
+        attack_label = "attack"
+        normal_label = "normal"
+
+    rf_preds = np.where(rf_probs >= rf_threshold, attack_label, normal_label)
+    svm_preds = np.where(svm_probs >= svm_threshold, attack_label, normal_label)
+
+    rf_preds_decoded = [decode_prediction(p, encoder) for p in rf_preds]
+    svm_preds_decoded = [decode_prediction(p, encoder) for p in svm_preds]
+
+    results = metadata.copy()
+
+    results["RF_attack_prob"] = np.round(rf_probs, 4)
+    results["RF_threshold"] = rf_threshold
+    results["RF_pred"] = rf_preds_decoded
+
+    results["SVM_attack_prob"] = np.round(svm_probs, 4)
+    results["SVM_threshold"] = svm_threshold
+    results["SVM_pred"] = svm_preds_decoded
+
+    results["RF_correct"] = results["RF_pred"] == results["expected_type"]
+    results["SVM_correct"] = results["SVM_pred"] == results["expected_type"]
+
+    print(results.to_string(index=False))
+    return results
 
 def main():
     parser = argparse.ArgumentParser(
@@ -300,6 +422,10 @@ def main():
     parser.add_argument("--features", default="feature_columns.pkl", help="Path to saved feature columns .pkl")
     parser.add_argument("--output", default="synthetic_ids_test_results.csv", help="CSV file for saving results")
     parser.add_argument("--save-samples", default="synthetic_ids_samples.csv", help="CSV file for saving generated samples")
+
+    parser.add_argument("--rf-threshold", type=float, default=0.007, help="Attack probability threshold for Random Forest")
+    parser.add_argument("--svm-threshold", type=float, default=0.007, help="Attack probability threshold for SVM")
+
     args = parser.parse_args()
 
     df = make_synthetic_samples()
@@ -309,29 +435,19 @@ def main():
     encoder = load_optional(args.encoder)
     feature_columns = load_optional(args.features)
 
-    all_results = []
-
-    if Path(args.rf).exists():
-        rf_results = evaluate_model("Random Forest", args.rf, df, encoder, feature_columns)
-        rf_results.insert(0, "model", "Random Forest")
-        all_results.append(rf_results)
+    if Path(args.rf).exists() and Path(args.svm).exists():
+        results = compare_models(
+            args.rf,
+            args.svm,
+            df,
+            encoder,
+            feature_columns,
+            rf_threshold=args.rf_threshold,
+            svm_threshold=args.svm_threshold
+        )
+        results.to_csv(args.output, index=False)
+        print(f"\nSaved combined comparison results to: {args.output}")
     else:
-        print(f"Random Forest model not found: {args.rf}")
-
-    if Path(args.svm).exists():
-        svm_results = evaluate_model("SVM", args.svm, df, encoder, feature_columns)
-        svm_results.insert(0, "model", "SVM")
-        all_results.append(svm_results)
-    else:
-        print(f"SVM model not found: {args.svm}")
-
-    if all_results:
-        combined = pd.concat(all_results, ignore_index=True)
-        combined.to_csv(args.output, index=False)
-        print(f"\nSaved combined results to: {args.output}")
-    else:
-        print("\nNo models were tested. Check your --rf and --svm paths.")
-
-
+        print("Make sure both RF and SVM models exist!")
 if __name__ == "__main__":
     main()
