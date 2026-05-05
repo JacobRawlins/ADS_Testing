@@ -1,0 +1,13 @@
+scenario,expected_type,duration,protocol_type,service,flag,src_bytes,dst_bytes,land,wrong_fragment,urgent,hot,num_failed_logins,logged_in,num_compromised,root_shell,su_attempted,num_root,num_file_creations,num_shells,num_access_files,num_outbound_cmds,is_host_login,is_guest_login,count,srv_count,serror_rate,srv_serror_rate,rerror_rate,srv_rerror_rate,same_srv_rate,diff_srv_rate,srv_diff_host_rate,dst_host_count,dst_host_srv_count,dst_host_same_srv_rate,dst_host_diff_srv_rate,dst_host_same_src_port_rate,dst_host_srv_diff_host_rate,dst_host_serror_rate,dst_host_srv_serror_rate,dst_host_rerror_rate,dst_host_srv_rerror_rate
+normal_http,normal,0,tcp,http,SF,215,45076,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1,1,0.0,0.0,0.0,0.0,1.0,0.0,0.0,9,9,1.0,0.0,0.11,0.0,0.0,0.0,0.0,0.0
+normal_dns,normal,0,udp,domain_u,SF,44,120,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,3,0.0,0.0,0.0,0.0,1.0,0.0,0.0,20,20,1.0,0.0,0.11,0.0,0.0,0.0,0.0,0.0
+dos_syn_flood_like,attack,0,tcp,http,S0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,250,250,1.0,1.0,0.0,0.0,1.0,0.0,0.0,255,255,1.0,0.0,0.11,0.0,1.0,1.0,0.0,0.0
+probe_port_scan_like,attack,0,tcp,private,REJ,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,120,8,0.0,0.0,1.0,1.0,0.07,0.93,0.0,255,8,0.03,0.97,0.11,0.0,0.0,0.0,1.0,1.0
+r2l_failed_login_like,attack,5,tcp,ftp,SF,125,331,0,0,0,3,5,0,0,0,0,0,0,0,0,0,0,1,4,4,0.0,0.0,0.0,0.0,1.0,0.0,0.0,30,6,0.2,0.0,0.11,0.0,0.0,0.0,0.0,0.0
+u2r_privilege_escalation_like,attack,20,tcp,telnet,SF,300,1500,0,0,0,8,0,1,3,1,1,3,2,1,2,0,0,0,2,2,0.0,0.0,0.0,0.0,1.0,0.0,0.0,9,9,1.0,0.0,0.11,0.0,0.0,0.0,0.0,0.0
+dos_udp_flood_like,attack,0,udp,domain_u,SF,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,300,300,1.0,0.0,0.0,0.0,1.0,0.0,0.0,9,9,1.0,0.0,0.11,0.0,0.0,0.0,0.0,0.0
+dos_slow_rate_like,attack,100,tcp,http,SF,10,10,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,50,50,0.0,0.0,0.0,0.0,1.0,0.0,0.0,9,9,1.0,0.0,0.11,0.0,0.0,0.0,0.0,0.0
+probe_host_sweep_like,attack,0,tcp,http,SF,215,45076,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,200,5,0.0,0.0,0.0,0.0,1.0,0.95,0.0,255,9,1.0,0.0,0.11,0.0,0.0,0.0,0.0,0.0
+probe_service_scan_like,attack,0,tcp,ftp,SF,215,45076,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,150,20,0.0,0.0,0.0,0.0,0.2,0.8,0.0,9,9,1.0,0.0,0.11,0.0,0.0,0.0,0.0,0.0
+r2l_ftp_bruteforce_like,attack,0,tcp,ftp,SF,215,45076,0,0,0,5,10,0,0,0,0,0,0,0,0,0,0,0,1,1,0.0,0.0,0.0,0.0,1.0,0.0,0.0,9,9,1.0,0.0,0.11,0.0,0.0,0.0,0.0,0.0
+u2r_file_abuse_like,attack,0,tcp,http,SF,215,45076,0,0,0,0,0,1,0,0,0,0,10,2,5,0,0,0,1,1,0.0,0.0,0.0,0.0,1.0,0.0,0.0,9,9,1.0,0.0,0.11,0.0,0.0,0.0,0.0,0.0

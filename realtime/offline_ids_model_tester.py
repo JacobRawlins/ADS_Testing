@@ -185,7 +185,7 @@ def make_synthetic_samples():
         "expected_type": "attack",
     })
     samples.append(u2r_priv)
-        # 7. DoS - UDP flood variant
+       
     dos_udp = base_normal_sample()
     dos_udp.update({
         "protocol_type": "udp",
@@ -356,10 +356,20 @@ def evaluate_model(name, model_path, raw_df, encoder=None, feature_columns=None)
     print(results.to_string(index=False))
     return results
 
-def compare_models(rf_path, svm_path, df, encoder=None, feature_columns=None):
+def compare_models(
+    rf_path,
+    svm_path,
+    df,
+    encoder=None,
+    feature_columns=None,
+    rf_threshold=0.007,
+    svm_threshold=0.007
+):
     print("\n" + "=" * 80)
     print("COMPARING RANDOM FOREST vs SVM")
     print("=" * 80)
+    print(f"RF attack threshold:  {rf_threshold}")
+    print(f"SVM attack threshold: {svm_threshold}")
 
     rf_model = joblib.load(rf_path)
     svm_model = joblib.load(svm_path)
@@ -367,37 +377,40 @@ def compare_models(rf_path, svm_path, df, encoder=None, feature_columns=None):
     metadata = df[["scenario", "expected_type"]].copy()
     raw_features = df.drop(columns=["scenario", "expected_type"])
 
-    # Prepare features for BOTH models
     X_rf = prepare_features_for_model(rf_model, raw_features, feature_columns)
     X_svm = prepare_features_for_model(svm_model, raw_features, feature_columns)
 
-    # Predictions
-    rf_preds = rf_model.predict(X_rf)
-    svm_preds = svm_model.predict(X_svm)
+    rf_probs = np.asarray(get_attack_probability(rf_model, X_rf, encoder), dtype=float)
+    svm_probs = np.asarray(get_attack_probability(svm_model, X_svm, encoder), dtype=float)
 
-    # Probabilities
-    rf_probs = get_attack_probability(rf_model, X_rf, encoder)
-    svm_probs = get_attack_probability(svm_model, X_svm, encoder)
+    if encoder is not None:
+        attack_label = encoder.transform(["attack"])[0]
+        normal_label = encoder.transform(["normal"])[0]
+    else:
+        attack_label = "attack"
+        normal_label = "normal"
 
-    # Decode labels
+    rf_preds = np.where(rf_probs >= rf_threshold, attack_label, normal_label)
+    svm_preds = np.where(svm_probs >= svm_threshold, attack_label, normal_label)
+
     rf_preds_decoded = [decode_prediction(p, encoder) for p in rf_preds]
     svm_preds_decoded = [decode_prediction(p, encoder) for p in svm_preds]
 
-    # Build comparison table
     results = metadata.copy()
-    results["RF_pred"] = rf_preds_decoded
+
     results["RF_attack_prob"] = np.round(rf_probs, 4)
+    results["RF_threshold"] = rf_threshold
+    results["RF_pred"] = rf_preds_decoded
 
-    results["SVM_pred"] = svm_preds_decoded
     results["SVM_attack_prob"] = np.round(svm_probs, 4)
+    results["SVM_threshold"] = svm_threshold
+    results["SVM_pred"] = svm_preds_decoded
 
-    # correctness
     results["RF_correct"] = results["RF_pred"] == results["expected_type"]
     results["SVM_correct"] = results["SVM_pred"] == results["expected_type"]
 
     print(results.to_string(index=False))
     return results
-
 
 def main():
     parser = argparse.ArgumentParser(
@@ -409,6 +422,10 @@ def main():
     parser.add_argument("--features", default="feature_columns.pkl", help="Path to saved feature columns .pkl")
     parser.add_argument("--output", default="synthetic_ids_test_results.csv", help="CSV file for saving results")
     parser.add_argument("--save-samples", default="synthetic_ids_samples.csv", help="CSV file for saving generated samples")
+
+    parser.add_argument("--rf-threshold", type=float, default=0.007, help="Attack probability threshold for Random Forest")
+    parser.add_argument("--svm-threshold", type=float, default=0.007, help="Attack probability threshold for SVM")
+
     args = parser.parse_args()
 
     df = make_synthetic_samples()
@@ -418,14 +435,19 @@ def main():
     encoder = load_optional(args.encoder)
     feature_columns = load_optional(args.features)
 
-    all_results = []
-
     if Path(args.rf).exists() and Path(args.svm).exists():
-        results = compare_models(args.rf, args.svm, df, encoder, feature_columns)
+        results = compare_models(
+            args.rf,
+            args.svm,
+            df,
+            encoder,
+            feature_columns,
+            rf_threshold=args.rf_threshold,
+            svm_threshold=args.svm_threshold
+        )
         results.to_csv(args.output, index=False)
         print(f"\nSaved combined comparison results to: {args.output}")
     else:
         print("Make sure both RF and SVM models exist!")
-
 if __name__ == "__main__":
     main()
