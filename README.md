@@ -1,1 +1,2 @@
 Please run this command in the realtime folder to properly run the project: python3 offline_ids_model_tester.py --rf ../notebooks/models/ids_random_forest_model.pkl --svm ../notebooks/models/ids_svm_model.pkl --encoder ../notebooks/models/label_encoder.pkl --features ../notebooks/models/feature_columns.pkl
+Please also install the required packages depcited in the requirements .txt file.
